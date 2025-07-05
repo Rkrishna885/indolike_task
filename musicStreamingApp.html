@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harmoniq - Music Streaming App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --primary-dark: #5649d2;
+            --secondary: #00b894;
+            --dark: #2d3436;
+            --light: #f5f6fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+        }
+
+        .player-progress {
+            -webkit-appearance: none;
+            height: 6px;
+            background: #dfe6e9;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+
+        .player-progress::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+
+        .auth-container {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .music-card:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+
+        .volume-control::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .waveform {
+            height: 40px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            animation: wave 2s ease-in-out infinite alternate;
+            border-radius: 5px;
+        }
+
+        @keyframes wave {
+            0% {
+                background-position: 0% 50%;
+            }
+            100% {
+                background-position: 100% 50%;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .player-container {
+                flex-direction: column;
+                height: auto;
+            }
+            .player-info {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Navigation Bar -->
+        <nav class="bg-white shadow-lg p-4 flex justify-between items-center sticky top-0 z-50">
+            <div class="flex items-center">
+                <div class="logo mr-3">
+                    <img src="https://placehold.co/40x40" alt="Harmoniq music logo - purple gradient with musical note" class="rounded-full">
+                </div>
+                <h1 class="text-xl font-bold text-purple-600">Harmoniq</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="show-auth" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full transition">
+                    Sign In
+                </button>
+                <div id="user-menu" class="hidden flex items-center relative">
+                    <img id="user-avatar" src="https://placehold.co/40x40" alt="User profile picture" class="rounded-full cursor-pointer">
+                    <div id="dropdown-menu" class="hidden absolute top-full right-0 mt-2 bg-white shadow-lg rounded-lg py-2 w-48 z-50">
+                        <a href="#" class="block px-4 py-2 hover:bg-gray-100">My Profile</a>
+                        <a href="#" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
+                        <a href="#" id="logout-btn" class="block px-4 py-2 hover:bg-gray-100">Log Out</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Authentication View -->
+        <div id="auth-view" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="auth-container bg-white rounded-xl p-8 w-full max-w-md">
+                <button id="close-auth" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+                
+                <div id="login-form">
+                    <h2 class="text-2xl font-bold mb-6">Welcome Back</h2>
+                    <div class="mb-4">
+                        <label for="login-email" class="block mb-1">Email</label>
+                        <input type="email" id="login-email" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="login-password" class="block mb-1">Password</label>
+                        <input type="password" id="login-password" class="w-full p-2 border rounded">
+                    </div>
+                    <button id="login-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white p-2 rounded mb-4 transition">
+                        Log In
+                    </button>
+                    <p class="text-center">
+                        Don't have an account? 
+                        <button id="show-signup" class="text-purple-600 hover:underline">Sign Up</button>
+                    </p>
+                </div>
+
+                <div id="signup-form" class="hidden">
+                    <h2 class="text-2xl font-bold mb-6">Create an Account</h2>
+                    <div class="mb-4">
+                        <label for="signup-name" class="block mb-1">Name</label>
+                        <input type="text" id="signup-name" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-email" class="block mb-1">Email</label>
+                        <input type="email" id="signup-email" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-password" class="block mb-1">Password</label>
+                        <input type="password" id="signup-password" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-confirm" class="block mb-1">Confirm Password</label>
+                        <input type="password" id="signup-confirm" class="w-full p-2 border rounded">
+                    </div>
+                    <button id="signup-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white p-2 rounded mb-4 transition">
+                        Sign Up
+                    </button>
+                    <p class="text-center">
+                        Already have an account? 
+                        <button id="show-login" class="text-purple-600 hover:underline">Log In</button>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="flex-grow p-6">
+            <!-- Library View -->
+            <div id="library-view">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-2xl font-bold">Your Library</h2>
+                    <div class="flex space-x-4">
+                        <button id="create-playlist-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full transition">
+                            <i class="fas fa-plus mr-2"></i>Create Playlist
+                        </button>
+                        <button id="upload-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition">
+                            <i class="fas fa-upload mr-2"></i>Upload Music
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Playlists Section -->
+                <div class="mb-10">
+                    <h3 class="text-xl font-semibold mb-4">Your Playlists</h3>
+                    <div id="playlists-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <!-- Playlists will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Songs Section -->
+                <div class="mb-10">
+                    <h3 class="text-xl font-semibold mb-4">All Songs</h3>
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artist</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Album</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="songs-container" class="bg-white divide-y divide-gray-200">
+                                <!-- Songs will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Create Playlist Modal -->
+            <div id="playlist-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-8 w-full max-w-md">
+                    <button id="close-playlist-modal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold mb-6">Create New Playlist</h2>
+                    <div class="mb-4">
+                        <label for="playlist-name" class="block mb-1">Playlist Name</label>
+                        <input type="text" id="playlist-name" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="playlist-description" class="block mb-1">Description (Optional)</label>
+                        <textarea id="playlist-description" class="w-full p-2 border rounded"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label for="playlist-image" class="block mb-1">Cover Image (Optional)</label>
+                        <input type="file" id="playlist-image" accept="image/*" class="w-full">
+                    </div>
+                    <button id="save-playlist-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white p-2 rounded mt-4 transition">
+                        Create Playlist
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Music Modal -->
+            <div id="upload-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-8 w-full max-w-md">
+                    <button id="close-upload-modal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold mb-6">Upload Music</h2>
+                    <div class="mb-4">
+                        <label for="song-title" class="block mb-1">Song Title</label>
+                        <input type="text" id="song-title" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="song-artist" class="block mb-1">Artist</label>
+                        <input type="text" id="song-artist" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="song-album" class="block mb-1">Album</label>
+                        <input type="text" id="song-album" class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label for="song-file" class="block mb-1">Audio File</label>
+                        <input type="file" id="song-file" accept="audio/*" class="w-full">
+                    </div>
+                    <div class="mb-4">
+                        <label for="song-cover" class="block mb-1">Cover Image (Optional)</label>
+                        <input type="file" id="song-cover" accept="image/*" class="w-full">
+                    </div>
+                    <button id="upload-song-btn" class="w-full bg-green-600 hover:bg-green-700 text-white p-2 rounded mt-4 transition">
+                        Upload Song
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Player Controls -->
+        <div id="player-container" class="bg-white shadow-lg p-4 border-t border-gray-200 sticky bottom-0 z-40">
+            <div class="player-container flex items-center justify-between max-w-screen-xl mx-auto">
+                <div class="player-info flex items-center w-1/4">
+                    <img id="now-playing-cover" src="https://placehold.co/60x60" alt="Currently playing song cover" class="rounded mr-3">
+                    <div>
+                        <div id="now-playing-title" class="font-medium">Not Playing</div>
+                        <div id="now-playing-artist" class="text-sm text-gray-500">Select a song to play</div>
+                    </div>
+                </div>
+                
+                <div class="player-controls flex flex-col items-center w-2/4">
+                    <div class="flex items-center mb-2">
+                        <button id="prev-btn" class="mx-2 text-gray-600 hover:text-purple-600 transition">
+                            <i class="fas fa-step-backward text-xl"></i>
+                        </button>
+                        <button id="play-btn" class="mx-2 bg-purple-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-purple-700 transition">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button id="next-btn" class="mx-2 text-gray-600 hover:text-purple-600 transition">
+                            <i class="fas fa-step-forward text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="w-full flex items-center">
+                        <span id="current-time" class="text-xs text-gray-500">0:00</span>
+                        <input type="range" id="progress-bar" class="player-progress flex-grow mx-2" min="0" max="100" value="0">
+                        <span id="duration" class="text-xs text-gray-500">0:00</span>
+                    </div>
+                </div>
+                
+                <div class="player-options flex items-center justify-end w-1/4">
+                    <button id="volume-btn" class="mx-2 text-gray-600 hover:text-purple-600 transition">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <input type="range" id="volume-control" class="volume-control w-20 mx-2" min="0" max="100" value="50">
+                    <button id="queue-btn" class="mx-2 text-gray-600 hover:text-purple-600 transition">
+                        <i class="fas fa-list"></i>
+                    </button>
+                    <button id="repeat-btn" class="mx-2 text-gray-600 hover:text-purple-600 transition">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audio element -->
+            <audio id="audio-player"></audio>
+        </div>
+
+        <!-- Queue Modal -->
+        <div id="queue-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+            <div class="bg-white h-full w-full max-w-sm p-4 overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">Up Next</h3>
+                    <button id="close-queue-modal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+                <div id="queue-list">
+                    <!-- Queue items will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // App state
+        const state = {
+            currentUser: null,
+            isLoggedIn: false,
+            songs: [],
+            playlists: [],
+            currentSong: null,
+            isPlaying: false,
+            queue: [],
+            currentTime: 0,
+            volume: 50,
+            isMuted: false,
+            isRepeating: false,
+            playlists: [
+                {
+                    id: 'pl1',
+                    name: 'Favorites',
+                    description: 'My favorite tracks',
+                    image: 'https://placehold.co/300x300',
+                    songs: []
+                },
+                {
+                    id: 'pl2',
+                    name: 'Workout Mix',
+                    description: 'High energy tracks for workouts',
+                    image: 'https://placehold.co/300x300',
+                    songs: []
+                }
+            ]
+        };
+
+        // DOM elements
+        const elements = {
+            app: document.getElementById('app'),
+            authView: document.getElementById('auth-view'),
+            loginForm: document.getElementById('login-form'),
+            signupForm: document.getElementById('signup-form'),
+            libraryView: document.getElementById('library-view'),
+            playerContainer: document.getElementById('player-container'),
+            showAuthBtn: document.getElementById('show-auth'),
+            closeAuthBtn: document.getElementById('close-auth'),
+            loginBtn: document.getElementById('login-btn'),
+            signupBtn: document.getElementById('signup-btn'),
+            showSignupBtn: document.getElementById('show-signup'),
+            showLoginBtn: document.getElementById('show-login'),
+            userMenu: document.getElementById('user-menu'),
+            userAvatar: document.getElementById('user-avatar'),
+            dropdownMenu: document.getElementById('dropdown-menu'),
+            logoutBtn: document.getElementById('logout-btn'),
+            playlistsContainer: document.getElementById('playlists-container'),
+            songsContainer: document.getElementById('songs-container'),
+            createPlaylistBtn: document.getElementById('create-playlist-btn'),
+            playlistModal: document.getElementById('playlist-modal'),
+            closePlaylistModal: document.getElementById('close-playlist-modal'),
+            savePlaylistBtn: document.getElementById('save-playlist-btn'),
+            uploadBtn: document.getElementById('upload-btn'),
+            uploadModal: document.getElementById('upload-modal'),
+            closeUploadModal: document.getElementById('close-upload-modal'),
+            uploadSongBtn: document.getElementById('upload-song-btn'),
+            audioPlayer: document.getElementById('audio-player'),
+            nowPlayingTitle: document.getElementById('now-playing-title'),
+            nowPlayingArtist: document.getElementById('now-playing-artist'),
+            nowPlayingCover: document.getElementById('now-playing-cover'),
+            playBtn: document.getElementById('play-btn'),
+            prevBtn: document.getElementById('prev-btn'),
+            nextBtn: document.getElementById('next-btn'),
+            progressBar: document.getElementById('progress-bar'),
+            currentTimeEl: document.getElementById('current-time'),
+            durationEl: document.getElementById('duration'),
+            volumeBtn: document.getElementById('volume-btn'),
+            volumeControl: document.getElementById('volume-control'),
+            queueBtn: document.getElementById('queue-btn'),
+            queueModal: document.getElementById('queue-modal'),
+            closeQueueModal: document.getElementById('close-queue-modal'),
+            queueList: document.getElementById('queue-list'),
+            repeatBtn: document.getElementById('repeat-btn')
+        };
+
+        // Sample songs data (in a real app, this would come from a database)
+        state.songs = [
+            {
+                id: 's1',
+                title: 'Blinding Lights',
+                artist: 'The Weeknd',
+                album: 'After Hours',
+                duration: '3:20',
+                cover: 'https://placehold.co/300x300',
+                audioSrc: ''
+            },
+            {
+                id: 's2',
+                title: 'Save Your Tears',
+                artist: 'The Weeknd',
+                album: 'After Hours',
+                duration: '3:35',
+                cover: 'https://placehold.co/300x300',
+                audioSrc: ''
+            },
+            {
+                id: 's3',
+                title: 'Levitating',
+                artist: 'Dua Lipa',
+                album: 'Future Nostalgia',
+                duration: '3:23',
+                cover: 'https://placehold.co/300x300',
+                audioSrc: ''
+            }
+        ];
+
+        // Initialize the app
+        function init() {
+            renderSongs();
+            renderPlaylists();
+            loadVolume();
+            setupEventListeners();
+            checkAuthStatus();
+        }
+
+        // Render songs in the library
+        function renderSongs() {
+            elements.songsContainer.innerHTML = '';
+            
+            state.songs.forEach((song, index) => {
+                const songRow = document.createElement('tr');
+                songRow.className = 'hover:bg-gray-50 cursor-pointer';
+                songRow.dataset.id = song.id;
+                
+                songRow.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${index + 1}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${song.title}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${song.artist}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${song.album}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${song.duration}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="text-purple-600 hover:text-purple-800 mr-2" data-action="play" data-id="${song.id}">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="text-green-600 hover:text-green-800" data-action="add-to-queue" data-id="${song.id}">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </td>
+                `;
+                
+                elements.songsContainer.appendChild(songRow);
+            });
+        }
+
+        // Render playlists in the library
+        function renderPlaylists() {
+            elements.playlistsContainer.innerHTML = '';
+            
+            state.playlists.forEach(playlist => {
+                const playlistCard = document.createElement('div');
+                playlistCard.className = 'bg-white rounded-lg shadow overflow-hidden cursor-pointer';
+                playlistCard.dataset.id = playlist.id;
+                
+                playlistCard.innerHTML = `
+                    <div class="playlist-image">
+                        <img src="${playlist.image}" alt="Playlist cover for ${playlist.name}" class="w-full h-40 object-cover">
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold text-lg mb-1">${playlist.name}</h4>
+                        <p class="text-gray-500 text-sm">${playlist.songs.length} songs • ${playlist.description}</p>
+                    </div>
+                `;
+                
+                elements.playlistsContainer.appendChild(playlistCard);
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Auth related
+            elements.showAuthBtn.addEventListener('click', () => elements.authView.classList.remove('hidden'));
+            elements.closeAuthBtn.addEventListener('click', () => elements.authView.classList.add('hidden'));
+            elements.showSignupBtn.addEventListener('click', () => {
+                elements.loginForm.classList.add('hidden');
+                elements.signupForm.classList.remove('hidden');
+            });
+            elements.showLoginBtn.addEventListener('click', () => {
+                elements.signupForm.classList.add('hidden');
+                elements.loginForm.classList.remove('hidden');
+            });
+            elements.loginBtn.addEventListener('click', handleLogin);
+            elements.signupBtn.addEventListener('click', handleSignup);
+            elements.userAvatar.addEventListener('click', toggleDropdown);
+            elements.logoutBtn.addEventListener('click', handleLogout);
+            
+            // Music playback
+            elements.playBtn.addEventListener('click', togglePlayback);
+            elements.prevBtn.addEventListener('click', playPrevious);
+            elements.nextBtn.addEventListener('click', playNext);
+            elements.progressBar.addEventListener('input', seekAudio);
+            elements.volumeControl.addEventListener('input', changeVolume);
+            elements.volumeBtn.addEventListener('click', toggleMute);
+            elements.repeatBtn.addEventListener('click', toggleRepeat);
+            
+            // Playlist management
+            elements.createPlaylistBtn.addEventListener('click', () => elements.playlistModal.classList.remove('hidden'));
+            elements.closePlaylistModal.addEventListener('click', () => elements.playlistModal.classList.add('hidden'));
+            elements.savePlaylistBtn.addEventListener('click', createPlaylist);
+            
+            // Music upload
+            elements.uploadBtn.addEventListener('click', () => elements.uploadModal.classList.remove('hidden'));
+            elements.closeUploadModal.addEventListener('click', () => elements.uploadModal.classList.add('hidden'));
+            elements.uploadSongBtn.addEventListener('click', uploadSong);
+            
+            // Queue management
+            elements.queueBtn.addEventListener('click', () => elements.queueModal.classList.remove('hidden'));
+            elements.closeQueueModal.addEventListener('click', () => elements.queueModal.classList.add('hidden'));
+            
+            // Song click events (delegated)
+            elements.songsContainer.addEventListener('click', (e) => {
+                const actionBtn = e.target.closest('[data-action]');
+                if (!actionBtn) return;
+                
+                const songId = actionBtn.dataset.id;
+                const action = actionBtn.dataset.action;
+                
+                const song = state.songs.find(s => s.id === songId);
+                if (!song) return;
+                
+                if (action === 'play') {
+                    playSong(song);
+                } else if (action === 'add-to-queue') {
+                    addToQueue(song);
+                }
+            });
+            
+            // Audio element events
+            elements.audioPlayer.addEventListener('timeupdate', updateProgressBar);
+            elements.audioPlayer.addEventListener('ended', handleSongEnded);
+            elements.audioPlayer.addEventListener('play', () => {
+                state.isPlaying = true;
+                updatePlayButton();
+            });
+            elements.audioPlayer.addEventListener('pause', () => {
+                state.isPlaying = false;
+                updatePlayButton();
+            });
+            
+            // Load volume from localStorage
+            loadVolume();
+        }
+
+        // Authentication functions
+        function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!email || !password) {
+                alert('Please enter both email and password');
+                return;
+            }
+            
+            // In a real app, this would be an API call
+            state.currentUser = {
+                id: 'u1',
+                name: 'Demo User',
+                email: email,
+                avatar: 'https://placehold.co/300x300'
+            };
+            
+            state.isLoggedIn = true;
+            updateAuthUI();
+            elements.authView.classList.add('hidden');
+        }
+
+        function handleSignup() {
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirm = document.getElementById('signup-confirm').value;
+            
+                       if (!name || !email || !password || !confirm) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (password !== confirm) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            // Simulate account creation (in a real app, use an API)
+            state.currentUser = {
+                id: 'u2',
+                name,
+                email,
+                avatar: 'https://placehold.co/300x300'
+            };
+
+            state.isLoggedIn = true;
+            updateAuthUI();
+            elements.authView.classList.add('hidden');
+        }
+
+        function handleLogout() {
+            state.currentUser = null;
+            state.isLoggedIn = false;
+            updateAuthUI();
+        }
+
+        function toggleDropdown() {
+            elements.dropdownMenu.classList.toggle('hidden');
+        }
+
+        function updateAuthUI() {
+            if (state.isLoggedIn) {
+                elements.showAuthBtn.classList.add('hidden');
+                elements.userMenu.classList.remove('hidden');
+                elements.userAvatar.src = state.currentUser.avatar;
+            } else {
+                elements.showAuthBtn.classList.remove('hidden');
+                elements.userMenu.classList.add('hidden');
+            }
+        }
+
+        function checkAuthStatus() {
+            updateAuthUI();
+        }
+
+        function loadVolume() {
+            elements.audioPlayer.volume = state.volume / 100;
+            elements.volumeControl.value = state.volume;
+        }
+
+        function changeVolume(e) {
+            state.volume = e.target.value;
+            elements.audioPlayer.volume = state.volume / 100;
+        }
+
+        function toggleMute() {
+            state.isMuted = !state.isMuted;
+            elements.audioPlayer.muted = state.isMuted;
+            elements.volumeBtn.innerHTML = state.isMuted
+                ? '<i class="fas fa-volume-mute"></i>'
+                : '<i class="fas fa-volume-up"></i>';
+        }
+
+        function toggleRepeat() {
+            state.isRepeating = !state.isRepeating;
+            elements.repeatBtn.classList.toggle('text-purple-600', state.isRepeating);
+        }
+
+        function playSong(song) {
+            state.currentSong = song;
+            elements.audioPlayer.src = song.audioSrc;
+            elements.audioPlayer.play();
+            elements.nowPlayingTitle.textContent = song.title;
+            elements.nowPlayingArtist.textContent = song.artist;
+            elements.nowPlayingCover.src = song.cover;
+        }
+
+        function togglePlayback() {
+            if (!state.currentSong) return;
+            if (state.isPlaying) {
+                elements.audioPlayer.pause();
+            } else {
+                elements.audioPlayer.play();
+            }
+        }
+
+        function updatePlayButton() {
+            elements.playBtn.innerHTML = state.isPlaying
+                ? '<i class="fas fa-pause"></i>'
+                : '<i class="fas fa-play"></i>';
+        }
+
+        function playPrevious() {
+            const index = state.songs.findIndex(s => s.id === state.currentSong.id);
+            if (index > 0) playSong(state.songs[index - 1]);
+        }
+
+        function playNext() {
+            const index = state.songs.findIndex(s => s.id === state.currentSong.id);
+            if (index < state.songs.length - 1) playSong(state.songs[index + 1]);
+            else if (state.isRepeating) playSong(state.songs[0]);
+        }
+
+        function updateProgressBar() {
+            const current = elements.audioPlayer.currentTime;
+            const duration = elements.audioPlayer.duration;
+
+            if (!isNaN(duration)) {
+                elements.progressBar.value = (current / duration) * 100;
+                elements.currentTimeEl.textContent = formatTime(current);
+                elements.durationEl.textContent = formatTime(duration);
+            }
+        }
+
+        function seekAudio(e) {
+            const percent = e.target.value;
+            const duration = elements.audioPlayer.duration;
+            if (!isNaN(duration)) {
+                elements.audioPlayer.currentTime = (percent / 100) * duration;
+            }
+        }
+
+        function formatTime(time) {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        function handleSongEnded() {
+            playNext();
+        }
+
+        function addToQueue(song) {
+            state.queue.push(song);
+            renderQueue();
+        }
+
+        function renderQueue() {
+            elements.queueList.innerHTML = '';
+            state.queue.forEach((song, i) => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 border-b';
+                item.innerHTML = `
+                    <div>
+                        <div class="font-medium">${song.title}</div>
+                        <div class="text-sm text-gray-500">${song.artist}</div>
+                    </div>
+                    <button class="text-purple-600 hover:text-purple-800" onclick="playSongFromQueue(${i})">
+                        <i class="fas fa-play"></i>
+                    </button>
+                `;
+                elements.queueList.appendChild(item);
+            });
+        }
+
+        function playSongFromQueue(index) {
+            const song = state.queue[index];
+            if (song) {
+                playSong(song);
+                state.queue.splice(index, 1);
+                renderQueue();
+            }
+        }
+
+        function createPlaylist() {
+            const name = document.getElementById('playlist-name').value;
+            const description = document.getElementById('playlist-description').value;
+            const imageInput = document.getElementById('playlist-image');
+            const image = imageInput.files[0]
+                ? URL.createObjectURL(imageInput.files[0])
+                : 'https://placehold.co/300x300';
+
+            if (!name) {
+                alert('Please enter a playlist name');
+                return;
+            }
+
+            const newPlaylist = {
+                id: `pl-${Date.now()}`,
+                name,
+                description,
+                image,
+                songs: []
+            };
+
+            state.playlists.push(newPlaylist);
+            renderPlaylists();
+            elements.playlistModal.classList.add('hidden');
+        }
+
+        function uploadSong() {
+            const title = document.getElementById('song-title').value;
+            const artist = document.getElementById('song-artist').value;
+            const album = document.getElementById('song-album').value;
+            const audioInput = document.getElementById('song-file');
+            const coverInput = document.getElementById('song-cover');
+
+            if (!title || !artist || !album || !audioInput.files[0]) {
+                alert('Please fill all song fields and choose an audio file.');
+                return;
+            }
+
+            const newSong = {
+                id:` s-${Date.now()}`,
+                title,
+                artist,
+                album,
+                duration: '3:00',
+                cover: coverInput.files[0]
+                    ? URL.createObjectURL(coverInput.files[0])
+                    : 'https://placehold.co/300x300',
+                audioSrc: URL.createObjectURL(audioInput.files[0])
+            };
+
+            state.songs.push(newSong);
+            renderSongs();
+            elements.uploadModal.classList.add('hidden');
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
